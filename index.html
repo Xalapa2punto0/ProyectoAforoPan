@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Lector de QR con Folios</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    #qr-reader { width: 300px; margin: auto; }
+    #result { margin-top: 20px; font-size: 1.2em; }
+    #lista-usados { margin-top: 30px; }
+    .usado { color: green; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Escanear Folios QR</h1>
+  <div id="qr-reader"></div>
+  <div id="result"></div>
+  <div id="lista-usados">
+    <h2>Folios usados:</h2>
+    <ul id="usados"></ul>
+  </div>
+
+  <script>
+    const foliosUsados = new Set();
+
+    function onScanSuccess(decodedText, decodedResult) {
+      if (!foliosUsados.has(decodedText)) {
+        foliosUsados.add(decodedText);
+
+        const li = document.createElement('li');
+        li.textContent = decodedText;
+        li.classList.add('usado');
+        document.getElementById('usados').appendChild(li);
+
+        document.getElementById('result').innerText = `Folio escaneado: ${decodedText}`;
+      } else {
+        document.getElementById('result').innerText = `Folio repetido: ${decodedText}`;
+      }
+    }
+
+    function onScanError(errorMessage) {
+      // Puedes mostrar el error si lo necesitas
+      // console.warn(`QR Scan error: ${errorMessage}`);
+    }
+
+    // Inicializa el lector QR
+    let html5QrcodeScanner = new Html5QrcodeScanner(
+      "qr-reader", { fps: 10, qrbox: 250 });
+    html5QrcodeScanner.render(onScanSuccess, onScanError);
+  </script>
+</body>
+</html>
