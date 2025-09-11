@@ -2,13 +2,85 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lector de QR con Folios</title>
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://unpkg.com/html5-qrcode" defer></script>
   <style>
-    #qr-reader { width: 300px; margin: auto; }
-    #result { margin-top: 20px; font-size: 1.2em; }
-    #lista-usados { margin-top: 30px; }
-    .usado { color: green; font-weight: bold; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+      background: #f9f9f9;
+    }
+
+    h1 {
+      font-size: 1.5em;
+      margin-bottom: 20px;
+    }
+
+    #qr-reader {
+      width: 100%;
+      max-width: 400px;
+      margin: auto;
+    }
+
+    #result {
+      margin-top: 20px;
+      font-size: 1.1em;
+    }
+
+    #lista-usados {
+      margin-top: 30px;
+      text-align: left;
+      max-width: 400px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .usado {
+      color: green;
+      font-weight: bold;
+    }
+
+    /* --- Notificaciones --- */
+    .notification {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 1em;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      z-index: 9999;
+    }
+
+    .notification.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-10px);
+    }
+
+    .notification.success {
+      background: #28a745;
+    }
+
+    .notification.error {
+      background: #dc3545;
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 1.2em;
+      }
+      #result {
+        font-size: 1em;
+      }
+    }
   </style>
 </head>
 <body>
@@ -20,10 +92,23 @@
     <ul id="usados"></ul>
   </div>
 
+  <!-- Contenedor de notificaciones -->
+  <div id="notification" class="notification"></div>
+
   <script>
     const foliosUsados = new Set();
+    const notification = document.getElementById("notification");
 
-    function onScanSuccess(decodedText, decodedResult) {
+    function showNotification(message, type = "success") {
+      notification.textContent = message;
+      notification.className = `notification ${type} show`;
+
+      setTimeout(() => {
+        notification.classList.remove("show");
+      }, 3000);
+    }
+
+    function onScanSuccess(decodedText) {
       if (!foliosUsados.has(decodedText)) {
         foliosUsados.add(decodedText);
 
@@ -33,20 +118,25 @@
         document.getElementById('usados').appendChild(li);
 
         document.getElementById('result').innerText = `Folio escaneado: ${decodedText}`;
+        showNotification(`✅ Nuevo folio: ${decodedText}`, "success");
       } else {
         document.getElementById('result').innerText = `Folio repetido: ${decodedText}`;
+        showNotification(`⚠️ Folio repetido: ${decodedText}`, "error");
       }
     }
 
     function onScanError(errorMessage) {
-      // Puedes mostrar el error si lo necesitas
+      // Si quieres ver los errores, descomenta:
       // console.warn(`QR Scan error: ${errorMessage}`);
     }
 
-    // Inicializa el lector QR
-    let html5QrcodeScanner = new Html5QrcodeScanner(
-      "qr-reader", { fps: 10, qrbox: 250 });
-    html5QrcodeScanner.render(onScanSuccess, onScanError);
+    document.addEventListener("DOMContentLoaded", () => {
+      let html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", {
+        fps: 10,
+        qrbox: { width: 250, height: 250 }
+      });
+      html5QrcodeScanner.render(onScanSuccess, onScanError);
+    });
   </script>
 </body>
 </html>
