@@ -99,6 +99,10 @@
     const foliosUsados = new Set();
     const notification = document.getElementById("notification");
 
+    // Tiempo mínimo entre escaneos (en ms)
+    const SCAN_DELAY = 2000; 
+    let lastScanTime = 0;
+
     function showNotification(message, type = "success") {
       notification.textContent = message;
       notification.className = `notification ${type} show`;
@@ -109,6 +113,12 @@
     }
 
     function onScanSuccess(decodedText) {
+      const now = Date.now();
+      if (now - lastScanTime < SCAN_DELAY) {
+        return; // Ignora escaneos demasiado seguidos
+      }
+      lastScanTime = now;
+
       if (!foliosUsados.has(decodedText)) {
         foliosUsados.add(decodedText);
 
@@ -126,7 +136,7 @@
     }
 
     function onScanError(errorMessage) {
-      // Si quieres ver los errores, descomenta:
+      // Puedes habilitarlo si quieres depurar:
       // console.warn(`QR Scan error: ${errorMessage}`);
     }
 
@@ -140,3 +150,4 @@
   </script>
 </body>
 </html>
+
