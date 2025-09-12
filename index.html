@@ -101,4 +101,126 @@ function onScanError(e){/* opcional: console.warn(e); */}
 /* ----- Cámara / foco / linterna ----- */
 const html5QrCode = new Html5Qrcode("qr-reader");
 let currentCameraId = null;
-let currentTrac
+let currentTrack = null;
+let torchOn = false;
+
+async function startScanner(preferBack = true, explicitCameraId = null){
+  try {
+    const cameras = await Html5Qrcode.getCameras();
+    if (!cameras.length) throw new Error("No se encontraron cámaras");
+    let chosen = cameras[0];
+    if (explicitCameraId){
+      const c = cameras.find(x => x.id === explicitCameraId);
+      if (c) chosen = c;
+    } else if (preferBack){
+      const back = cameras.find(c => /back|rear|environment|trasera/i.test(c.label));
+      chosen = back || cameras[cameras.length-1];
+    }
+    currentCameraId = chosen.id;
+
+    const qrboxSize = Math.min(Math.floor(window.innerWidth * 0.72), 420);
+    const config = {
+      fps: 10,
+      qrbox: { width: qrboxSize, height: qrboxSize },
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      videoConstraints: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        facingMode: { ideal: "environment" }
+      }
+    };
+
+    await html5QrCode.start(currentCameraId, config, onScanSuccess, onScanError);
+    setTimeout(tryConfigureTrack,600);
+  } catch(err){
+    console.error(err);
+    showNotification("Error al iniciar la cámara: " + (err.message||err),"error");
+  }
+}
+
+async function tryConfigureTrack(){
+  try {
+    const video = document.querySelector("#qr-reader video");
+    if (!video || !video.srcObject) return;
+    const track = video.srcObject.getVideoTracks()[0];
+    currentTrack = track;
+
+    if (track.getCapabilities){
+      const caps = track.getCapabilities();
+      if (caps.focusMode && track.applyConstraints){
+        await track.applyConstraints({ advanced:[{ focusMode:"continuous" }] }).catch(()=>{});
+      }
+    }
+
+    // tap-to-focus
+    video.addEventListener("click", async ev=>{
+      try {
+        const rect = video.getBoundingClientRect();
+        const point = {
+          x:(ev.clientX-rect.left)/rect.width,
+          y:(ev.clientY-rect.top)/rect.height
+        };
+        const caps = currentTrack.getCapabilities();
+        if ((caps.pointsOfInterest || caps.focusMode) && currentTrack.applyConstraints){
+          await currentTrack.applyConstraints({ advanced:[{ focusMode:"manual", pointsOfInterest:[point] }] }).catch(()=>{});
+          showNotification("Intentando enfocar...","success");
+        } else {
+          showNotification("Enfoque táctil no soportado","error");
+        }
+      } catch(e){ console.warn("tap-focus:",e); }
+    });
+  } catch(e){ console.warn("tryConfigureTrack:",e); }
+}
+
+async function toggleTorch(){
+  if (!currentTrack){ showNotification("Cámara no lista","error"); return; }
+  try {
+    const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
+    if (!caps.torch){ showNotification("Linterna no soportada","error"); return; }
+    torchOn = !torchOn;
+    await currentTrack.applyConstraints({ advanced:[{ torch: torchOn }] });
+    showNotification(torchOn ? "🔦 Linterna encendida" : "🔦 Linterna apagada","success");
+  } catch(e){
+    console.warn("toggleTorch:",e);
+    showNotification("No se pudo cambiar la linterna","error");
+  }
+}
+
+/* ----- Controles UI ----- */
+function addControlsUI(){
+  const wrapper = document.createElement("div");
+  wrapper.style.display = "flex";
+  wrapper.style.justifyContent = "center";
+  wrapper.style.gap = "10px";
+  wrapper.style.margin = "10px 0";
+
+  const btnSwitch = document.createElement("button");
+  btnSwitch.textContent = "🔁 Cambiar cámara";
+  btnSwitch.type = "button";
+  btnSwitch.addEventListener("click", async ()=>{
+    const cams = await Html5Qrcode.getCameras();
+    if (!cams || cams.length < 2){ showNotification("No hay otra cámara","error"); return; }
+    const idx = cams.findIndex(c => c.id === currentCameraId);
+    const next = cams[(idx + 1) % cams.length];
+    await html5QrCode.stop().catch(()=>{});
+    await startScanner(false, next.id);
+  });
+
+  const btnTorch = document.createElement("button");
+  btnTorch.textContent = "🔦 Linterna";
+  btnTorch.type = "button";
+  btnTorch.addEventListener("click", toggleTorch);
+
+  wrapper.appendChild(btnSwitch);
+  wrapper.appendChild(btnTorch);
+  const parent = document.getElementById("qr-reader");
+  parent.parentNode.insertBefore(wrapper, parent);
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  addControlsUI();
+  startScanner(true);
+});
+</script>
+</body>
+</html>
