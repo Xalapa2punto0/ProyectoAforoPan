@@ -1,153 +1,104 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lector de QR con Folios</title>
-  <script src="https://unpkg.com/html5-qrcode" defer></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-      text-align: center;
-      background: #f9f9f9;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lector de QR con Folios</title>
+<script src="https://unpkg.com/html5-qrcode" defer></script>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    text-align: center;
+    background: #f9f9f9;
+  }
+  h1 { font-size: 1.5em; margin-bottom: 20px; }
+  #qr-reader { width: 100%; max-width: 400px; margin: auto; }
+  #result { margin-top: 20px; font-size: 1.1em; }
+  #lista-usados {
+    margin-top: 30px;
+    text-align: left;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .usado { color: green; font-weight: bold; }
 
-    h1 {
-      font-size: 1.5em;
-      margin-bottom: 20px;
-    }
+  /* Notificaciones */
+  .notification {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 1em;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    z-index: 9999;
+  }
+  .notification.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  .notification.success { background: #28a745; }
+  .notification.error   { background: #dc3545; }
 
-    #qr-reader {
-      width: 100%;
-      max-width: 400px;
-      margin: auto;
-    }
-
-    #result {
-      margin-top: 20px;
-      font-size: 1.1em;
-    }
-
-    #lista-usados {
-      margin-top: 30px;
-      text-align: left;
-      max-width: 400px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    .usado {
-      color: green;
-      font-weight: bold;
-    }
-
-    /* --- Notificaciones --- */
-    .notification {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #333;
-      color: #fff;
-      padding: 12px 20px;
-      border-radius: 8px;
-      font-size: 1em;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.4s ease, transform 0.4s ease;
-      z-index: 9999;
-    }
-
-    .notification.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(-10px);
-    }
-
-    .notification.success {
-      background: #28a745;
-    }
-
-    .notification.error {
-      background: #dc3545;
-    }
-
-    @media (max-width: 600px) {
-      h1 {
-        font-size: 1.2em;
-      }
-      #result {
-        font-size: 1em;
-      }
-    }
-  </style>
+  @media (max-width:600px){
+    h1 { font-size: 1.2em; }
+    #result { font-size: 1em; }
+  }
+</style>
 </head>
 <body>
-  <h1>Escanear Folios QR</h1>
-  <div id="qr-reader"></div>
-  <div id="result"></div>
-  <div id="lista-usados">
-    <h2>Folios usados:</h2>
-    <ul id="usados"></ul>
-  </div>
+<h1>Escanear Folios QR</h1>
 
-  <!-- Contenedor de notificaciones -->
-  <div id="notification" class="notification"></div>
+<div id="qr-reader"></div>
+<div id="result"></div>
+<div id="lista-usados">
+  <h2>Folios usados:</h2>
+  <ul id="usados"></ul>
+</div>
 
-  <script>
-    const foliosUsados = new Set();
-    const notification = document.getElementById("notification");
+<div id="notification" class="notification"></div>
 
-    // Tiempo mínimo entre escaneos (en ms)
-    const SCAN_DELAY = 2000; 
-    let lastScanTime = 0;
+<script>
+const foliosUsados = new Set();
+const notification = document.getElementById("notification");
+const SCAN_DELAY = 2000;  // milisegundos
+let lastScanTime = 0;
 
-    function showNotification(message, type = "success") {
-      notification.textContent = message;
-      notification.className = `notification ${type} show`;
+function showNotification(message, type="success"){
+  notification.textContent = message;
+  notification.className = `notification ${type} show`;
+  setTimeout(()=>notification.classList.remove("show"),3000);
+}
 
-      setTimeout(() => {
-        notification.classList.remove("show");
-      }, 3000);
-    }
+function onScanSuccess(decodedText){
+  const now = Date.now();
+  if (now - lastScanTime < SCAN_DELAY) return; // cooldown
+  lastScanTime = now;
 
-    function onScanSuccess(decodedText) {
-      const now = Date.now();
-      if (now - lastScanTime < SCAN_DELAY) {
-        return; // Ignora escaneos demasiado seguidos
-      }
-      lastScanTime = now;
+  if (!foliosUsados.has(decodedText)){
+    foliosUsados.add(decodedText);
+    const li = document.createElement('li');
+    li.textContent = decodedText;
+    li.classList.add('usado');
+    document.getElementById('usados').appendChild(li);
+    document.getElementById('result').innerText = `Folio escaneado: ${decodedText}`;
+    showNotification(`✅ Nuevo folio: ${decodedText}`,"success");
+  } else {
+    document.getElementById('result').innerText = `Folio repetido: ${decodedText}`;
+    showNotification(`⚠️ Folio repetido: ${decodedText}`,"error");
+  }
+}
+function onScanError(e){/* opcional: console.warn(e); */}
 
-      if (!foliosUsados.has(decodedText)) {
-        foliosUsados.add(decodedText);
-
-        const li = document.createElement('li');
-        li.textContent = decodedText;
-        li.classList.add('usado');
-        document.getElementById('usados').appendChild(li);
-
-        document.getElementById('result').innerText = `Folio escaneado: ${decodedText}`;
-        showNotification(`✅ Nuevo folio: ${decodedText}`, "success");
-      } else {
-        document.getElementById('result').innerText = `Folio repetido: ${decodedText}`;
-        showNotification(`⚠️ Folio repetido: ${decodedText}`, "error");
-      }
-    }
-
-    function onScanError(errorMessage) {
-      // Puedes habilitarlo si quieres depurar:
-      // console.warn(`QR Scan error: ${errorMessage}`);
-    }
-
-    document.addEventListener("DOMContentLoaded", () => {
-      let html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", {
-        fps: 10,
-        qrbox: { width: 250, height: 250 }
-      });
-      html5QrcodeScanner.render(onScanSuccess, onScanError);
-    });
-  </script>
-</body>
-</html>
-
+/* ----- Cámara / foco / linterna ----- */
+const html5QrCode = new Html5Qrcode("qr-reader");
+let currentCameraId = null;
+let currentTrac
