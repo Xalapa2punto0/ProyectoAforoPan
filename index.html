@@ -6,59 +6,61 @@
 <title>Lector de QR con Folios</title>
 <script src="https://unpkg.com/html5-qrcode" defer></script>
 <style>
-  body {
+  body{
     font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 20px;
-    text-align: center;
-    background: #f9f9f9;
+    margin:0;
+    padding:20px;
+    text-align:center;
+    background:#f9f9f9;
   }
-  h1 { font-size: 1.5em; margin-bottom: 20px; }
-  #qr-reader { width: 100%; max-width: 400px; margin: auto; }
-  #result { margin-top: 20px; font-size: 1.1em; }
-  #lista-usados {
-    margin-top: 30px;
-    text-align: left;
-    max-width: 400px;
-    margin-left: auto;
-    margin-right: auto;
+  h1{font-size:1.5em;margin-bottom:20px;}
+  #qr-reader{width:100%;max-width:400px;margin:auto;}
+  #result{margin-top:20px;font-size:1.1em;}
+  #lista-usados{
+    margin-top:30px;text-align:left;
+    max-width:400px;margin-left:auto;margin-right:auto;
   }
-  .usado { color: green; font-weight: bold; }
+  .usado{color:green;font-weight:bold;}
 
   /* Notificaciones */
-  .notification {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #333;
-    color: #fff;
-    padding: 12px 20px;
-    border-radius: 8px;
-    font-size: 1em;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.4s ease, transform 0.4s ease;
-    z-index: 9999;
+  .notification{
+    position:fixed;bottom:20px;left:50%;
+    transform:translateX(-50%);
+    background:#333;color:#fff;
+    padding:12px 20px;border-radius:8px;
+    font-size:1em;opacity:0;pointer-events:none;
+    transition:opacity .4s ease,transform .4s ease;
+    z-index:9999;
   }
-  .notification.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(-10px);
+  .notification.show{
+    opacity:1;
+    transform:translateX(-50%) translateY(-10px);
   }
-  .notification.success { background: #28a745; }
-  .notification.error   { background: #dc3545; }
+  .notification.success{background:#28a745;}
+  .notification.error{background:#dc3545;}
 
   @media (max-width:600px){
-    h1 { font-size: 1.2em; }
-    #result { font-size: 1em; }
+    h1{font-size:1.2em;}
+    #result{font-size:1em;}
+  }
+  /* Botones extra */
+  .controls{
+    display:flex;justify-content:center;
+    gap:10px;margin:10px 0;
   }
 </style>
 </head>
 <body>
 <h1>Escanear Folios QR</h1>
 
+<div class="controls">
+  <button id="btnSwitch">🔁 Cambiar cámara</button>
+  <button id="btnTorch">🔦 Linterna</button>
+</div>
+
 <div id="qr-reader"></div>
 <div id="result"></div>
+
 <div id="lista-usados">
   <h2>Folios usados:</h2>
   <ul id="usados"></ul>
@@ -69,157 +71,80 @@
 <script>
 const foliosUsados = new Set();
 const notification = document.getElementById("notification");
-const SCAN_DELAY = 2000;  // milisegundos
+const SCAN_DELAY = 2000;
 let lastScanTime = 0;
+let html5QrcodeScanner;
+let currentTrack = null;
+let torchOn = false;
 
-function showNotification(message, type="success"){
-  notification.textContent = message;
+function showNotification(msg,type="success"){
+  notification.textContent = msg;
   notification.className = `notification ${type} show`;
   setTimeout(()=>notification.classList.remove("show"),3000);
 }
 
 function onScanSuccess(decodedText){
   const now = Date.now();
-  if (now - lastScanTime < SCAN_DELAY) return; // cooldown
+  if(now - lastScanTime < SCAN_DELAY) return;
   lastScanTime = now;
 
-  if (!foliosUsados.has(decodedText)){
+  if(!foliosUsados.has(decodedText)){
     foliosUsados.add(decodedText);
-    const li = document.createElement('li');
-    li.textContent = decodedText;
+    const li=document.createElement('li');
+    li.textContent=decodedText;
     li.classList.add('usado');
     document.getElementById('usados').appendChild(li);
-    document.getElementById('result').innerText = `Folio escaneado: ${decodedText}`;
+    document.getElementById('result').innerText=`Folio escaneado: ${decodedText}`;
     showNotification(`✅ Nuevo folio: ${decodedText}`,"success");
-  } else {
-    document.getElementById('result').innerText = `Folio repetido: ${decodedText}`;
+  }else{
+    document.getElementById('result').innerText=`Folio repetido: ${decodedText}`;
     showNotification(`⚠️ Folio repetido: ${decodedText}`,"error");
   }
 }
-function onScanError(e){/* opcional: console.warn(e); */}
 
-/* ----- Cámara / foco / linterna ----- */
-const html5QrCode = new Html5Qrcode("qr-reader");
-let currentCameraId = null;
-let currentTrack = null;
-let torchOn = false;
-
-async function startScanner(preferBack = true, explicitCameraId = null){
-  try {
-    const cameras = await Html5Qrcode.getCameras();
-    if (!cameras.length) throw new Error("No se encontraron cámaras");
-    let chosen = cameras[0];
-    if (explicitCameraId){
-      const c = cameras.find(x => x.id === explicitCameraId);
-      if (c) chosen = c;
-    } else if (preferBack){
-      const back = cameras.find(c => /back|rear|environment|trasera/i.test(c.label));
-      chosen = back || cameras[cameras.length-1];
-    }
-    currentCameraId = chosen.id;
-
-    const qrboxSize = Math.min(Math.floor(window.innerWidth * 0.72), 420);
-    const config = {
-      fps: 10,
-      qrbox: { width: qrboxSize, height: qrboxSize },
-      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-      videoConstraints: {
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-        facingMode: { ideal: "environment" }
-      }
-    };
-
-    await html5QrCode.start(currentCameraId, config, onScanSuccess, onScanError);
-    setTimeout(tryConfigureTrack,600);
-  } catch(err){
-    console.error(err);
-    showNotification("Error al iniciar la cámara: " + (err.message||err),"error");
-  }
-}
-
-async function tryConfigureTrack(){
-  try {
-    const video = document.querySelector("#qr-reader video");
-    if (!video || !video.srcObject) return;
-    const track = video.srcObject.getVideoTracks()[0];
-    currentTrack = track;
-
-    if (track.getCapabilities){
-      const caps = track.getCapabilities();
-      if (caps.focusMode && track.applyConstraints){
-        await track.applyConstraints({ advanced:[{ focusMode:"continuous" }] }).catch(()=>{});
-      }
-    }
-
-    // tap-to-focus
-    video.addEventListener("click", async ev=>{
-      try {
-        const rect = video.getBoundingClientRect();
-        const point = {
-          x:(ev.clientX-rect.left)/rect.width,
-          y:(ev.clientY-rect.top)/rect.height
-        };
-        const caps = currentTrack.getCapabilities();
-        if ((caps.pointsOfInterest || caps.focusMode) && currentTrack.applyConstraints){
-          await currentTrack.applyConstraints({ advanced:[{ focusMode:"manual", pointsOfInterest:[point] }] }).catch(()=>{});
-          showNotification("Intentando enfocar...","success");
-        } else {
-          showNotification("Enfoque táctil no soportado","error");
-        }
-      } catch(e){ console.warn("tap-focus:",e); }
-    });
-  } catch(e){ console.warn("tryConfigureTrack:",e); }
-}
-
-async function toggleTorch(){
-  if (!currentTrack){ showNotification("Cámara no lista","error"); return; }
-  try {
-    const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
-    if (!caps.torch){ showNotification("Linterna no soportada","error"); return; }
-    torchOn = !torchOn;
-    await currentTrack.applyConstraints({ advanced:[{ torch: torchOn }] });
-    showNotification(torchOn ? "🔦 Linterna encendida" : "🔦 Linterna apagada","success");
-  } catch(e){
-    console.warn("toggleTorch:",e);
-    showNotification("No se pudo cambiar la linterna","error");
-  }
-}
-
-/* ----- Controles UI ----- */
-function addControlsUI(){
-  const wrapper = document.createElement("div");
-  wrapper.style.display = "flex";
-  wrapper.style.justifyContent = "center";
-  wrapper.style.gap = "10px";
-  wrapper.style.margin = "10px 0";
-
-  const btnSwitch = document.createElement("button");
-  btnSwitch.textContent = "🔁 Cambiar cámara";
-  btnSwitch.type = "button";
-  btnSwitch.addEventListener("click", async ()=>{
-    const cams = await Html5Qrcode.getCameras();
-    if (!cams || cams.length < 2){ showNotification("No hay otra cámara","error"); return; }
-    const idx = cams.findIndex(c => c.id === currentCameraId);
-    const next = cams[(idx + 1) % cams.length];
-    await html5QrCode.stop().catch(()=>{});
-    await startScanner(false, next.id);
-  });
-
-  const btnTorch = document.createElement("button");
-  btnTorch.textContent = "🔦 Linterna";
-  btnTorch.type = "button";
-  btnTorch.addEventListener("click", toggleTorch);
-
-  wrapper.appendChild(btnSwitch);
-  wrapper.appendChild(btnTorch);
-  const parent = document.getElementById("qr-reader");
-  parent.parentNode.insertBefore(wrapper, parent);
-}
+function onScanError(err){/* opcional: console.warn(err); */}
 
 document.addEventListener("DOMContentLoaded", ()=>{
-  addControlsUI();
-  startScanner(true);
+  // --- inicializa el widget oficial ---
+  html5QrcodeScanner = new Html5QrcodeScanner("qr-reader",{
+    fps:10,
+    qrbox: ()=>{ 
+      const size=Math.min(window.innerWidth*0.7,400);
+      return {width:size,height:size};
+    },
+    experimentalFeatures:{useBarCodeDetectorIfSupported:true},
+    rememberLastUsedCamera:true
+  });
+  html5QrcodeScanner.render(onScanSuccess,onScanError);
+
+  // Botón cambiar cámara
+  document.getElementById("btnSwitch").addEventListener("click", async ()=>{
+    try{
+      const cams = await Html5Qrcode.getCameras();
+      if(cams.length<2){showNotification("No hay otra cámara","error");return;}
+      // alternar entre cámaras
+      const current = html5QrcodeScanner.getState().cameraId;
+      const idx = cams.findIndex(c=>c.id===current);
+      const next = cams[(idx+1)%cams.length];
+      await html5QrcodeScanner.clear();
+      html5QrcodeScanner.render(onScanSuccess,onScanError,next.id);
+    }catch(e){console.error(e);showNotification("Error al cambiar cámara","error");}
+  });
+
+  // Botón linterna
+  document.getElementById("btnTorch").addEventListener("click", async ()=>{
+    try{
+      const video = document.querySelector("#qr-reader video");
+      if(!video || !video.srcObject){showNotification("Cámara no lista","error");return;}
+      const track = video.srcObject.getVideoTracks()[0];
+      if(!track.getCapabilities || !track.getCapabilities().torch){
+        showNotification("Linterna no soportada","error");return;
+      }
+      torchOn=!torchOn;
+      await track.applyConstraints({advanced:[{torch:torchOn}]});
+      showNotification(torchOn?"🔦 Linterna encendida":"🔦 Linterna apagada","success");
+    }catch(e){console.error(e);showNotification("No se pudo cambiar la linterna","error");}
+  });
 });
 </script>
 </body>
