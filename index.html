@@ -14,11 +14,11 @@
     background:#f9f9f9;
   }
   h1{font-size:1.5em;margin-bottom:20px;}
-  #qr-reader{width:100%;max-width:400px;margin:auto;}
+  #qr-reader{width:100%;max-width:500px;margin:auto;}
   #result{margin-top:20px;font-size:1.1em;}
   #lista-usados{
     margin-top:30px;text-align:left;
-    max-width:400px;margin-left:auto;margin-right:auto;
+    max-width:500px;margin-left:auto;margin-right:auto;
   }
   .usado{color:green;font-weight:bold;}
 
@@ -43,7 +43,6 @@
     h1{font-size:1.2em;}
     #result{font-size:1em;}
   }
-  /* Botones extra */
   .controls{
     display:flex;justify-content:center;
     gap:10px;margin:10px 0;
@@ -74,7 +73,6 @@ const notification = document.getElementById("notification");
 const SCAN_DELAY = 2000;
 let lastScanTime = 0;
 let html5QrcodeScanner;
-let currentTrack = null;
 let torchOn = false;
 
 function showNotification(msg,type="success"){
@@ -105,15 +103,19 @@ function onScanSuccess(decodedText){
 function onScanError(err){/* opcional: console.warn(err); */}
 
 document.addEventListener("DOMContentLoaded", ()=>{
-  // --- inicializa el widget oficial ---
+  // Inicializa con mayor tolerancia:
   html5QrcodeScanner = new Html5QrcodeScanner("qr-reader",{
-    fps:10,
+    fps: 15,   // más frames por segundo para capturar mejor
     qrbox: ()=>{ 
-      const size=Math.min(window.innerWidth*0.7,400);
-      return {width:size,height:size};
+      // Caja grande: 80% del ancho de la pantalla hasta 500px máx.
+      const size = Math.min(window.innerWidth*0.8, 500);
+      return { width: size, height: size };
     },
-    experimentalFeatures:{useBarCodeDetectorIfSupported:true},
-    rememberLastUsedCamera:true
+    rememberLastUsedCamera: true,
+    // Usa el detector nativo de códigos de barra si está disponible:
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+    // Permite vídeo en HD para mejorar la nitidez:
+    aspectRatio: 1.0
   });
   html5QrcodeScanner.render(onScanSuccess,onScanError);
 
@@ -122,7 +124,6 @@ document.addEventListener("DOMContentLoaded", ()=>{
     try{
       const cams = await Html5Qrcode.getCameras();
       if(cams.length<2){showNotification("No hay otra cámara","error");return;}
-      // alternar entre cámaras
       const current = html5QrcodeScanner.getState().cameraId;
       const idx = cams.findIndex(c=>c.id===current);
       const next = cams[(idx+1)%cams.length];
