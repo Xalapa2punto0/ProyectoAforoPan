@@ -155,50 +155,98 @@
 
   // Cargar secciones en selects
   db.collection("secciones").onSnapshot(snap=>{
-    userSectionSelect.innerHTML = '<option value="">-- selecciona --</option>';
-    filterSectionSelect.innerHTML = '<option value="">Todas</option>';
-    let sectionsHtml = '';
-    snap.forEach(doc=>{
-      const id = doc.id;
-      const data = doc.data();
-      sectionsHtml += `${id} (${data.totalUsuarios})<br>`;
-      const opt1 = document.createElement("option"); opt1.value=id; opt1.textContent=id;
-      userSectionSelect.appendChild(opt1);
-      const opt2 = document.createElement("option"); opt2.value=id; opt2.textContent=id;
-      filterSectionSelect.appendChild(opt2);
-    });
-    document.getElementById("sections-list").innerHTML=sectionsHtml;
+  userSectionSelect.innerHTML = '<option value="">-- selecciona --</option>';
+  filterSectionSelect.innerHTML = '<option value="">Todas</option>';
+  let sectionsHtml = '';
+  snap.forEach(doc=>{
+    const id = doc.id;
+    const data = doc.data();
+
+    const total = data.totalUsuarios || 0;
+    const presentes = data.presentes || 0;
+
+    // Condición 50% + 1
+    const necesario = Math.floor(total / 2) + 1;
+    const cumplido = presentes >= necesario && total > 0;
+
+    // circulito verde si se cumple
+    const indicador = cumplido 
+      ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;margin-left:6px"></span>` 
+      : "";
+
+    sectionsHtml += `${id} (${presentes}/${total}) ${indicador}<br>`;
+
+    // Selects
+    const opt1 = document.createElement("option"); opt1.value=id; opt1.textContent=id;
+    userSectionSelect.appendChild(opt1);
+    const opt2 = document.createElement("option"); opt2.value=id; opt2.textContent=id;
+    filterSectionSelect.appendChild(opt2);
   });
+  document.getElementById("sections-list").innerHTML=sectionsHtml;
+});
+
 
   // Escáner QR
-  let scanner=null;
-  document.getElementById("start-scan").addEventListener("click",()=>{
-    if(scanner) return;
-    scanner = new Html5Qrcode("reader");
-    scanner.start({ facingMode:"environment" }, { fps:10, qrbox:200 },
-      async (decoded)=>{
-        const uRef = db.collection("usuarios").doc(decoded);
+let html5QrCode = null;
+
+document.getElementById("start-scan").addEventListener("click", () => {
+  if (html5QrCode) return; // ya está corriendo
+
+  html5QrCode = new Html5Qrcode("reader");
+
+  const qrConfig = { fps: 10, qrbox: 200 };
+
+  html5QrCode.start(
+    { facingMode: "environment" }, // cámara trasera
+    qrConfig,
+    async (decodedText) => {
+      try {
+        const uRef = db.collection("usuarios").doc(decodedText);
         const doc = await uRef.get();
-        if(doc.exists && !doc.data().asistencia){
-          await uRef.update({ asistencia:true });
+
+        if (doc.exists && !doc.data().asistencia) {
+          await uRef.update({ asistencia: true });
+
           const sRef = db.collection("secciones").doc(doc.data().seccion);
-          await db.runTransaction(async (t)=>{
+          await db.runTransaction(async (t) => {
             const sdoc = await t.get(sRef);
-            if(sdoc.exists) t.update(sRef,{ presentes: (sdoc.data().presentes||0)+1 });
+            if (sdoc.exists) {
+              t.update(sRef, { presentes: (sdoc.data().presentes || 0) + 1 });
+            }
           });
-          document.getElementById("scan-log").textContent = `Asistencia registrada: ${doc.data().nombre}`;
+
+          document.getElementById("scan-log").textContent =
+            `✅ Asistencia registrada: ${doc.data().nombre}`;
+        } else if (doc.exists && doc.data().asistencia) {
+          document.getElementById("scan-log").textContent =
+            `⚠️ El usuario ${doc.data().nombre} ya estaba marcado como presente.`;
+        } else {
+          document.getElementById("scan-log").textContent =
+            "❌ Código inválido o usuario no encontrado.";
         }
-      },
-      (error)=>{}
-    );
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    (errorMessage) => {
+      // mensajes de error de lectura (se ignoran para no saturar la consola)
+    }
+  ).catch((err) => {
+    console.error("Error iniciando escáner:", err);
+    document.getElementById("scan-log").textContent =
+      "❌ No se pudo acceder a la cámara.";
   });
-  document.getElementById("stop-scan").addEventListener("click",()=>{ if(scanner){scanner.stop();scanner=null;} });
-  document.getElementById("clear-attendance").addEventListener("click", async ()=>{
-    const users = await db.collection("usuarios").get();
-    users.forEach(u=>{ u.ref.update({ asistencia:false }); });
-    const secs = await db.collection("secciones").get();
-    secs.forEach(s=>{ s.ref.update({ presentes:0 }); });
-  });
+});
+
+document.getElementById("stop-scan").addEventListener("click", () => {
+  if (html5QrCode) {
+    html5QrCode.stop().then(() => {
+      html5QrCode.clear();
+      html5QrCode = null;
+      document.getElementById("scan-log").textContent = "⏹️ Escáner detenido.";
+    });
+  }
+});
 
   // Lista de asistencia
   db.collection("usuarios").onSnapshot(snap=>{
