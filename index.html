@@ -189,54 +189,67 @@
   // Escáner QR
 let html5QrCode = null;
 
-document.getElementById("start-scan").addEventListener("click", () => {
+const startScanBtn = document.getElementById("start-scan");
+const stopScanBtn = document.getElementById("stop-scan");
+const scanLog = document.getElementById("scan-log");
+
+startScanBtn.addEventListener("click", async () => {
   if (html5QrCode) return; // ya está corriendo
 
   html5QrCode = new Html5Qrcode("reader");
 
-  const qrConfig = { fps: 10, qrbox: 200 };
+  try {
+    await html5QrCode.start(
+      { facingMode: "environment" }, // cámara trasera
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      async (decodedText) => {
+        try {
+          const uRef = db.collection("usuarios").doc(decodedText);
+          const doc = await uRef.get();
 
-  html5QrCode.start(
-    { facingMode: "environment" }, // cámara trasera
-    qrConfig,
-    async (decodedText) => {
-      try {
-        const uRef = db.collection("usuarios").doc(decodedText);
-        const doc = await uRef.get();
+          if (doc.exists && !doc.data().asistencia) {
+            await uRef.update({ asistencia: true });
 
-        if (doc.exists && !doc.data().asistencia) {
-          await uRef.update({ asistencia: true });
+            const sRef = db.collection("secciones").doc(doc.data().seccion);
+            await db.runTransaction(async (t) => {
+              const sdoc = await t.get(sRef);
+              if (sdoc.exists) {
+                t.update(sRef, { presentes: (sdoc.data().presentes || 0) + 1 });
+              }
+            });
 
-          const sRef = db.collection("secciones").doc(doc.data().seccion);
-          await db.runTransaction(async (t) => {
-            const sdoc = await t.get(sRef);
-            if (sdoc.exists) {
-              t.update(sRef, { presentes: (sdoc.data().presentes || 0) + 1 });
-            }
-          });
-
-          document.getElementById("scan-log").textContent =
-            `✅ Asistencia registrada: ${doc.data().nombre}`;
-        } else if (doc.exists && doc.data().asistencia) {
-          document.getElementById("scan-log").textContent =
-            `⚠️ El usuario ${doc.data().nombre} ya estaba marcado como presente.`;
-        } else {
-          document.getElementById("scan-log").textContent =
-            "❌ Código inválido o usuario no encontrado.";
+            scanLog.textContent = `✅ Asistencia registrada: ${doc.data().nombre}`;
+          } else if (doc.exists && doc.data().asistencia) {
+            scanLog.textContent = `⚠️ ${doc.data().nombre} ya estaba presente.`;
+          } else {
+            scanLog.textContent = "❌ Usuario no encontrado.";
+          }
+        } catch (err) {
+          console.error(err);
+          scanLog.textContent = "❌ Error al registrar asistencia.";
         }
-      } catch (err) {
-        console.error(err);
       }
-    },
-    (errorMessage) => {
-      // mensajes de error de lectura (se ignoran para no saturar la consola)
-    }
-  ).catch((err) => {
-    console.error("Error iniciando escáner:", err);
-    document.getElementById("scan-log").textContent =
-      "❌ No se pudo acceder a la cámara.";
-  });
+    );
+    scanLog.textContent = "📷 Escáner iniciado, apunta a un QR...";
+  } catch (err) {
+    console.error("Error al iniciar escáner:", err);
+    scanLog.textContent = "❌ No se pudo iniciar la cámara.";
+  }
 });
+
+stopScanBtn.addEventListener("click", async () => {
+  if (html5QrCode) {
+    try {
+      await html5QrCode.stop();
+      html5QrCode.clear();
+      html5QrCode = null;
+      scanLog.textContent = "⏹️ Escáner detenido.";
+    } catch (err) {
+      console.error("Error al detener escáner:", err);
+    }
+  }
+});
+
 
 document.getElementById("stop-scan").addEventListener("click", () => {
   if (html5QrCode) {
