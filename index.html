@@ -1,152 +1,216 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lector de QR con Folios</title>
-<script src="https://unpkg.com/html5-qrcode" defer></script>
-<style>
-  body{
-    font-family: Arial, sans-serif;
-    margin:0;
-    padding:20px;
-    text-align:center;
-    background:#f9f9f9;
-  }
-  h1{font-size:1.5em;margin-bottom:20px;}
-  #qr-reader{width:100%;max-width:500px;margin:auto;}
-  #result{margin-top:20px;font-size:1.1em;}
-  #lista-usados{
-    margin-top:30px;text-align:left;
-    max-width:500px;margin-left:auto;margin-right:auto;
-  }
-  .usado{color:green;font-weight:bold;}
-
-  /* Notificaciones */
-  .notification{
-    position:fixed;bottom:20px;left:50%;
-    transform:translateX(-50%);
-    background:#333;color:#fff;
-    padding:12px 20px;border-radius:8px;
-    font-size:1em;opacity:0;pointer-events:none;
-    transition:opacity .4s ease,transform .4s ease;
-    z-index:9999;
-  }
-  .notification.show{
-    opacity:1;
-    transform:translateX(-50%) translateY(-10px);
-  }
-  .notification.success{background:#28a745;}
-  .notification.error{background:#dc3545;}
-
-  @media (max-width:600px){
-    h1{font-size:1.2em;}
-    #result{font-size:1em;}
-  }
-  .controls{
-    display:flex;justify-content:center;
-    gap:10px;margin:10px 0;
-  }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prototipo - Asistencia con QR</title>
+  <style>
+    :root{--accent:#0ea5a4;--muted:#666}
+    body{font-family:Inter,system-ui,Segoe UI,Arial;margin:0;background:#f7faf9;color:#0f172a}
+    .wrap{max-width:1100px;margin:18px auto;padding:12px}
+    header{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+    header h1{font-size:18px;margin:0}
+    .grid{display:grid;grid-template-columns:360px 1fr;gap:12px}
+    .card{background:white;border-radius:10px;padding:12px;box-shadow:0 6px 18px rgba(15,23,42,0.06)}
+    label{display:block;font-size:13px;margin-top:8px}
+    input,select,button{width:100%;padding:8px;margin-top:6px;border:1px solid #e6edf0;border-radius:6px;font-size:14px}
+    button{cursor:pointer;background:var(--accent);color:white;border:none}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;text-align:left;border-bottom:1px solid #f1f5f9;font-size:13px}
+    .indicator{display:inline-block;padding:6px 10px;border-radius:999px;font-weight:600}
+    .red{background:#fee2e2;color:#b91c1c}
+    .yellow{background:#fff7ed;color:#92400e}
+    .green{background:#ecfdf5;color:#065f46}
+    #qrcode-canvas{display:block;margin-top:8px}
+    .small{font-size:12px;color:var(--muted)}
+    .row{display:flex;gap:8px}
+    .left-col{min-width:360px}
+    .scanner-wrap{display:flex;flex-direction:column;gap:8px}
+    .status-present{color:green;font-weight:600}
+    .status-absent{color:#666}
+    @media (max-width:880px){.grid{grid-template-columns:1fr;}.left-col{min-width:unset}}
+  </style>
+  <!-- Librerías QR y Firebase -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
-<h1>Escanear Folios QR</h1>
+  <div class="wrap">
+    <header>
+      <h1>Prototipo - Asistencia con QR (Firebase)</h1>
+      <div class="small">Lista en tiempo real · Escaneo móvil · Indicadores por sección (50% + 1)</div>
+    </header>
 
-<div class="controls">
-  <button id="btnSwitch">🔁 Cambiar cámara</button>
-  <button id="btnTorch">🔦 Linterna</button>
-</div>
+    <div class="grid">
+      <div class="left-col">
+        <div class="card">
+          <h3>Administración</h3>
 
-<div id="qr-reader"></div>
-<div id="result"></div>
+          <label>Crear sección (nombre)</label>
+          <input id="section-name" placeholder="Sección A, Grupo 1..." />
+          <button id="btn-add-section">Crear sección</button>
 
-<div id="lista-usados">
-  <h2>Folios usados:</h2>
-  <ul id="usados"></ul>
-</div>
+          <hr style="margin:10px 0;border:none;border-top:1px dashed #eef2f7" />
 
-<div id="notification" class="notification"></div>
+          <label>Crear usuario</label>
+          <input id="user-name" placeholder="Nombre completo" /> 
+          <label>Asignar a sección</label>
+          <select id="user-section"><option value="">-- selecciona --</option></select>
+          <button id="btn-add-user">Crear usuario y generar QR</button>
+
+          <div style="margin-top:10px">
+            <strong>Último QR generado:</strong>
+            <div id="qrcode-holder"></div>
+            <canvas id="qrcode-canvas"></canvas>
+            <div id="last-generated" class="small"></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3>Secciones</h3>
+          <div id="sections-list" class="small"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card scanner-wrap">
+          <h3>Escáner (móvil / desktop)</h3>
+          <div id="reader" style="width:100%"></div>
+          <div class="row">
+            <button id="start-scan">Iniciar escáner</button>
+            <button id="stop-scan">Detener</button>
+            <button id="clear-attendance">Reset asistencia</button>
+          </div>
+          <div id="scan-log" class="small"></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3>Lista de asistencia (en tiempo real)</h3>
+          <div style="margin-bottom:8px">
+            <label>Filtrar por sección</label>
+            <select id="filter-section"><option value="">Todas</option></select>
+          </div>
+          <div style="max-height:420px;overflow:auto">
+            <table id="attendance-table">
+              <thead><tr><th>Nombre</th><th>Sección</th><th>Estado</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer style="margin-top:12px;font-size:12px;color:var(--muted)">Reemplaza <code>firebaseConfig</code> con tu configuración de Firebase. Usa Firestore en modo de pruebas mientras prototipas.</footer>
+  </div>
 
 <script>
-const foliosUsados = new Set();
-const notification = document.getElementById("notification");
-const SCAN_DELAY = 2000;
-let lastScanTime = 0;
-let html5QrcodeScanner;
-let torchOn = false;
+  // Configuración Firebase
+  const firebaseConfig = {
+    apiKey: "AIzaSyCZv-In5JXxpgUnm4yFYtmJNhQFwP3vm40",
+    authDomain: "proyecto-asistencia-b2820.firebaseapp.com",
+    projectId: "proyecto-asistencia-b2820"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-function showNotification(msg,type="success"){
-  notification.textContent = msg;
-  notification.className = `notification ${type} show`;
-  setTimeout(()=>notification.classList.remove("show"),3000);
-}
+  const userSectionSelect = document.getElementById("user-section");
+  const filterSectionSelect = document.getElementById("filter-section");
 
-function onScanSuccess(decodedText){
-  const now = Date.now();
-  if(now - lastScanTime < SCAN_DELAY) return;
-  lastScanTime = now;
-
-  if(!foliosUsados.has(decodedText)){
-    foliosUsados.add(decodedText);
-    const li=document.createElement('li');
-    li.textContent=decodedText;
-    li.classList.add('usado');
-    document.getElementById('usados').appendChild(li);
-    document.getElementById('result').innerText=`Folio escaneado: ${decodedText}`;
-    showNotification(`✅ Nuevo folio: ${decodedText}`,"success");
-  }else{
-    document.getElementById('result').innerText=`Folio repetido: ${decodedText}`;
-    showNotification(`⚠️ Folio repetido: ${decodedText}`,"error");
-  }
-}
-
-function onScanError(err){/* opcional: console.warn(err); */}
-
-document.addEventListener("DOMContentLoaded", ()=>{
-  // Inicializa con mayor tolerancia:
-  html5QrcodeScanner = new Html5QrcodeScanner("qr-reader",{
-    fps: 15,   // más frames por segundo para capturar mejor
-    qrbox: ()=>{ 
-      // Caja grande: 80% del ancho de la pantalla hasta 500px máx.
-      const size = Math.min(window.innerWidth*0.8, 500);
-      return { width: size, height: size };
-    },
-    rememberLastUsedCamera: true,
-    // Usa el detector nativo de códigos de barra si está disponible:
-    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-    // Permite vídeo en HD para mejorar la nitidez:
-    aspectRatio: 1.0
-  });
-  html5QrcodeScanner.render(onScanSuccess,onScanError);
-
-  // Botón cambiar cámara
-  document.getElementById("btnSwitch").addEventListener("click", async ()=>{
-    try{
-      const cams = await Html5Qrcode.getCameras();
-      if(cams.length<2){showNotification("No hay otra cámara","error");return;}
-      const current = html5QrcodeScanner.getState().cameraId;
-      const idx = cams.findIndex(c=>c.id===current);
-      const next = cams[(idx+1)%cams.length];
-      await html5QrcodeScanner.clear();
-      html5QrcodeScanner.render(onScanSuccess,onScanError,next.id);
-    }catch(e){console.error(e);showNotification("Error al cambiar cámara","error");}
+  // Crear sección
+  document.getElementById("btn-add-section").addEventListener("click", async () => {
+    const name = document.getElementById("section-name").value.trim();
+    if (!name) return;
+    await db.collection("secciones").doc(name).set({ totalUsuarios:0, presentes:0 });
+    document.getElementById("section-name").value="";
   });
 
-  // Botón linterna
-  document.getElementById("btnTorch").addEventListener("click", async ()=>{
-    try{
-      const video = document.querySelector("#qr-reader video");
-      if(!video || !video.srcObject){showNotification("Cámara no lista","error");return;}
-      const track = video.srcObject.getVideoTracks()[0];
-      if(!track.getCapabilities || !track.getCapabilities().torch){
-        showNotification("Linterna no soportada","error");return;
+  // Crear usuario y generar QR (bug corregido)
+  document.getElementById("btn-add-user").addEventListener("click", async () => {
+    const name = document.getElementById("user-name").value.trim();
+    const section = userSectionSelect.value;
+    if(!name || !section) return alert("Ingrese nombre y sección");
+    const userRef = db.collection("usuarios").doc();
+    const userId = userRef.id;
+    await userRef.set({ nombre:name, seccion:section, qrCode:userId, asistencia:false });
+
+    // Incremento atómico de totalUsuarios
+    const secRef = db.collection("secciones").doc(section);
+    await db.runTransaction(async (t)=>{
+      const doc = await t.get(secRef);
+      if(doc.exists){
+        t.update(secRef, { totalUsuarios: (doc.data().totalUsuarios||0)+1 });
+      } else {
+        t.set(secRef,{ totalUsuarios:1, presentes:0 });
       }
-      torchOn=!torchOn;
-      await track.applyConstraints({advanced:[{torch:torchOn}]});
-      showNotification(torchOn?"🔦 Linterna encendida":"🔦 Linterna apagada","success");
-    }catch(e){console.error(e);showNotification("No se pudo cambiar la linterna","error");}
+    });
+
+    // Generar QR
+    document.getElementById("qrcode-canvas").innerHTML="";
+    QRCode.toCanvas(document.getElementById("qrcode-canvas"), userId, (err)=>{});
+    document.getElementById("last-generated").textContent = name;
+    document.getElementById("user-name").value="";
   });
-});
+
+  // Cargar secciones en selects
+  db.collection("secciones").onSnapshot(snap=>{
+    userSectionSelect.innerHTML = '<option value="">-- selecciona --</option>';
+    filterSectionSelect.innerHTML = '<option value="">Todas</option>';
+    let sectionsHtml = '';
+    snap.forEach(doc=>{
+      const id = doc.id;
+      const data = doc.data();
+      sectionsHtml += `${id} (${data.totalUsuarios})<br>`;
+      const opt1 = document.createElement("option"); opt1.value=id; opt1.textContent=id;
+      userSectionSelect.appendChild(opt1);
+      const opt2 = document.createElement("option"); opt2.value=id; opt2.textContent=id;
+      filterSectionSelect.appendChild(opt2);
+    });
+    document.getElementById("sections-list").innerHTML=sectionsHtml;
+  });
+
+  // Escáner QR
+  let scanner=null;
+  document.getElementById("start-scan").addEventListener("click",()=>{
+    if(scanner) return;
+    scanner = new Html5Qrcode("reader");
+    scanner.start({ facingMode:"environment" }, { fps:10, qrbox:200 },
+      async (decoded)=>{
+        const uRef = db.collection("usuarios").doc(decoded);
+        const doc = await uRef.get();
+        if(doc.exists && !doc.data().asistencia){
+          await uRef.update({ asistencia:true });
+          const sRef = db.collection("secciones").doc(doc.data().seccion);
+          await db.runTransaction(async (t)=>{
+            const sdoc = await t.get(sRef);
+            if(sdoc.exists) t.update(sRef,{ presentes: (sdoc.data().presentes||0)+1 });
+          });
+          document.getElementById("scan-log").textContent = `Asistencia registrada: ${doc.data().nombre}`;
+        }
+      },
+      (error)=>{}
+    );
+  });
+  document.getElementById("stop-scan").addEventListener("click",()=>{ if(scanner){scanner.stop();scanner=null;} });
+  document.getElementById("clear-attendance").addEventListener("click", async ()=>{
+    const users = await db.collection("usuarios").get();
+    users.forEach(u=>{ u.ref.update({ asistencia:false }); });
+    const secs = await db.collection("secciones").get();
+    secs.forEach(s=>{ s.ref.update({ presentes:0 }); });
+  });
+
+  // Lista de asistencia
+  db.collection("usuarios").onSnapshot(snap=>{
+    const tbody = document.querySelector("#attendance-table tbody");
+    tbody.innerHTML="";
+    snap.forEach(doc=>{
+      const u=doc.data();
+      const tr = document.createElement("tr");
+      tr.innerHTML=`<td>${u.nombre}</td><td>${u.seccion}</td><td class="${u.asistencia?'status-present':'status-absent'}">${u.asistencia?'Presente':'Ausente'}</td>`;
+      tbody.appendChild(tr);
+    });
+  });
 </script>
 </body>
 </html>
