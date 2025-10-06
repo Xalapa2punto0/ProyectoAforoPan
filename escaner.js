@@ -11,17 +11,18 @@ const readerEl = document.getElementById('reader');
 const btnReintentar = document.getElementById('btnReintentar');
 const confirmacion = document.getElementById('confirmacion');
 
-let video;
-let canvas, ctx;
-let animationId;
+let video, canvas, ctx, animationId;
 let scanning = false;
 
-// Mostrar confirmación
+// Mostrar confirmación visual
 function mostrarConfirmacion(texto, tipo='exito'){
   confirmacion.textContent = texto;
   confirmacion.className = tipo;
   confirmacion.style.display='flex';
-  setTimeout(()=>{confirmacion.style.display='none'; iniciarEscaner();},2000);
+  setTimeout(()=>{
+    confirmacion.style.display='none';
+    iniciarEscaner(); // Reinicia automáticamente
+  },2000);
 }
 
 // Procesar QR
@@ -45,14 +46,37 @@ function procesarQR(qrText){
   });
 }
 
-// Loop para leer QR desde el video
+// Escaneo frame a frame
 function tick(){
   if(video.readyState === video.HAVE_ENOUGH_DATA){
-    canvas.height = video.videoHeight;
     canvas.width = video.videoWidth;
-    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+    canvas.height = video.videoHeight;
+
+    // Recorte central del frame (80%)
+    const boxSizeW = video.videoWidth * 0.8;
+    const boxSizeH = video.videoHeight * 0.8;
+    const offsetX = (video.videoWidth - boxSizeW)/2;
+    const offsetY = (video.videoHeight - boxSizeH)/2;
+
+    ctx.drawImage(video, offsetX, offsetY, boxSizeW, boxSizeH, 0, 0, canvas.width, canvas.height);
+
+    // Obtener imagen y convertir a gris
     const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
-    const code = jsQR(imageData.data, canvas.width, canvas.height);
+    const data = imageData.data;
+    for(let i=0;i<data.length;i+=4){
+      const gray = 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
+      data[i]=data[i+1]=data[i+2]=gray;
+    }
+    ctx.putImageData(imageData,0,0);
+
+    // Dibujar guía visual
+    ctx.strokeStyle='lime';
+    ctx.lineWidth=4;
+    const guideSize = Math.min(canvas.width, canvas.height)*0.6;
+    ctx.strokeRect((canvas.width-guideSize)/2,(canvas.height-guideSize)/2,guideSize,guideSize);
+
+    // Leer QR
+    const code = jsQR(data, canvas.width, canvas.height);
     if(code){
       cancelAnimationFrame(animationId);
       scanning=false;
@@ -89,5 +113,6 @@ function iniciarEscaner(){
     });
 }
 
+// Botón reintentar
 btnReintentar.addEventListener('click',()=>{scanning=false; iniciarEscaner();});
 window.onload = iniciarEscaner;
