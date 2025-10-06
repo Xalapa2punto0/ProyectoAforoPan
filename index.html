@@ -1,15 +1,19 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Escáner QR - Asistencia</title>
-  <link rel="stylesheet" href="style-qr.css">
+  <link rel="stylesheet" href="style-qr.css" />
 </head>
 <body>
   <h1>Escáner QR - Asistencia</h1>
-  <video id="video" autoplay></video>
-  <p id="mensaje">Apunta tu cámara al QR del usuario.</p>
+
+  <video id="video" autoplay playsinline muted></video>
+  <p id="mensaje">Permite el acceso a la cámara para comenzar.</p>
+
+  <button id="btnReintentar">🔄 Reintentar cámara</button>
+  <div id="alerta" class="oculto"></div>
 
   <script type="module" src="qr-scanner.js"></script>
 </body>
