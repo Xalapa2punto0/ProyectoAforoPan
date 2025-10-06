@@ -9,12 +9,16 @@
 <body>
   <h1>Escáner QR - Asistencia</h1>
 
-  <video id="video" autoplay playsinline muted></video>
-  <p id="mensaje">Permite el acceso a la cámara para comenzar.</p>
+  <div class="video-container">
+    <video id="video" autoplay playsinline muted></video>
+    <div id="overlay"></div>
+  </div>
 
+  <p id="mensaje">Permite el acceso a la cámara para comenzar.</p>
   <button id="btnReintentar">🔄 Reintentar cámara</button>
   <div id="alerta" class="oculto"></div>
 
   <script type="module" src="qr-scanner.js"></script>
 </body>
 </html>
+
