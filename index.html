@@ -1,25 +1,27 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Escáner QR - Asistencia</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Escáner QR - Asistencia</title>
+<link rel="stylesheet" href="style-qr.css">
 
-  <!-- Librería QR (se carga antes del módulo) -->
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+<!-- Librerías externas -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
 </head>
 <body>
-  <h1>Escáner QR - Asistencia</h1>
+<h1>Escáner QR - Asistencia</h1>
 
-  <div id="reader" style="width:90%;max-width:420px;margin:0 auto;border:3px solid #003366;border-radius:8px;overflow:hidden;background:#000"></div>
-  <p id="mensaje">Apunta la cámara al QR.</p>
-  <div style="margin-top:10px">
-    <button id="btnReintentar">🔄 Reintentar</button>
-  </div>
-  <div id="alerta"></div>
+<div id="reader" style="width:90%;max-width:420px;margin:0 auto;border:3px solid #003366;border-radius:8px;overflow:hidden;background:#000"></div>
+<p id="mensaje">Apunta la cámara al QR.</p>
+<div style="margin-top:10px">
+  <button id="btnReintentar">🔄 Reintentar</button>
+</div>
+<div id="alerta"></div>
 
-  <!-- Tu código JS (módulo) -->
-  <script type="module" src="escaner.js"></script>
+<script src="escaner.js"></script>
 </body>
 </html>

@@ -1,89 +1,42 @@
 body {
-  font-family: Arial, sans-serif;
-  background: #f5f5f5;
+  font-family: 'Segoe UI', sans-serif;
+  background-color: #e9f1f9;
   color: #003366;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  margin: 0;
   padding: 20px;
+  text-align: center;
 }
 
 h1 {
-  text-align: center;
-  margin-bottom: 15px;
-}
-
-.video-container {
-  position: relative;
-  width: 90%;
-  max-width: 400px;
-  aspect-ratio: 3/4;
-  overflow: hidden;
-  border-radius: 10px;
-  border: 3px solid #003366;
-  background: black;
-}
-
-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-#overlay {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 60%;
-  height: 30%;
-  transform: translate(-50%, -50%);
-  border: 3px solid #0055a5;
-  border-radius: 10px;
-  box-shadow: 0 0 20px #0055a5;
-  animation: blink 1.2s infinite alternate;
-}
-
-@keyframes blink {
-  from { opacity: 1; }
-  to { opacity: 0.5; }
+  color: #0055a5;
+  font-size: 1.4em;
+  margin-bottom: 20px;
 }
 
 #mensaje {
-  text-align: center;
-  font-size: 1rem;
-  margin-top: 15px;
-  margin-bottom: 10px;
+  margin-top: 10px;
+  font-size: 1em;
 }
 
-#btnReintentar {
+button {
   background: #0055a5;
   color: white;
   border: none;
+  padding: 10px 16px;
   border-radius: 6px;
-  padding: 10px 20px;
-  font-size: 1rem;
   cursor: pointer;
+  font-size: 1em;
+}
+
+button:hover {
+  background: #0077d3;
 }
 
 #alerta {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 12px 20px;
-  border-radius: 8px;
+  margin-top: 12px;
   font-weight: bold;
-  color: white;
-  font-size: 1rem;
-  opacity: 0;
-  transition: opacity 0.3s;
+  display: none;
 }
 
-#alerta.exito { background: #00a86b; opacity: 1; }
-#alerta.error { background: #e63946; opacity: 1; }
-.oculto { display: none; }
-
-@media (max-width: 450px) {
-  .video-container { width: 100%; }
-  #btnReintentar { width: 90%; }
-}
+#alerta.exito { color: #0a7a1f; }
+#alerta.error { color: #c00; }
