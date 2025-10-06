@@ -43,3 +43,7 @@ button:hover {
 }
 #confirmacion.exito { background: rgba(0,120,0,0.85); }
 #confirmacion.error { background: rgba(200,0,0,0.85); }
+
+#contador {
+  font-weight: bold;
+}
