@@ -62,22 +62,38 @@ function procesarQR(qrText){
   });
 }
 
-// Escaneo frame a frame
+// Rotar imagen en canvas
+function rotateCanvas(imageData, width, height, angle){
+  const offCanvas = document.createElement('canvas');
+  offCanvas.width = width;
+  offCanvas.height = height;
+  const offCtx = offCanvas.getContext('2d');
+  offCtx.putImageData(imageData,0,0);
+  const rotCanvas = document.createElement('canvas');
+  rotCanvas.width = width;
+  rotCanvas.height = height;
+  const rotCtx = rotCanvas.getContext('2d');
+  rotCtx.translate(width/2,height/2);
+  rotCtx.rotate(angle*Math.PI/180);
+  rotCtx.translate(-width/2,-height/2);
+  rotCtx.drawImage(offCanvas,0,0);
+  return rotCtx.getImageData(0,0,width,height);
+}
+
+// Escaneo frame a frame con rotaciones
 function tick(){
   if(video.readyState === video.HAVE_ENOUGH_DATA){
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
-    // Recorte central
     const boxSizeW = video.videoWidth*0.8;
     const boxSizeH = video.videoHeight*0.8;
-    const offsetX = (video.videoWidth - boxSizeW)/2;
-    const offsetY = (video.videoHeight - boxSizeH)/2;
+    const offsetX = (video.videoWidth-boxSizeW)/2;
+    const offsetY = (video.videoHeight-boxSizeH)/2;
 
-    ctx.drawImage(video, offsetX, offsetY, boxSizeW, boxSizeH, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(video,offsetX,offsetY,boxSizeW,boxSizeH,0,0,canvas.width,canvas.height);
 
-    // Escala de grises
-    const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
+    let imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
     const data = imageData.data;
     for(let i=0;i<data.length;i+=4){
       const gray = 0.299*data[i]+0.587*data[i+1]+0.114*data[i+2];
@@ -88,11 +104,17 @@ function tick(){
     // Guía visual
     ctx.strokeStyle='lime';
     ctx.lineWidth=4;
-    const guideSize = Math.min(canvas.width, canvas.height)*0.6;
+    const guideSize = Math.min(canvas.width,canvas.height)*0.6;
     ctx.strokeRect((canvas.width-guideSize)/2,(canvas.height-guideSize)/2,guideSize,guideSize);
 
-    // Leer QR
-    const code = jsQR(data,canvas.width,canvas.height);
+    // Intentar varias rotaciones: 0°, ±15°, ±30°
+    const angles = [0,15,-15,30,-30];
+    let code = null;
+    for(let ang of angles){
+      const rotatedData = ang===0 ? imageData : rotateCanvas(imageData,canvas.width,canvas.height,ang);
+      code = jsQR(rotatedData.data,canvas.width,canvas.height);
+      if(code) break;
+    }
     if(code){
       cancelAnimationFrame(animationId);
       scanning=false;
@@ -100,7 +122,7 @@ function tick(){
       return;
     }
   }
-  if(scanning) animationId = requestAnimationFrame(tick);
+  if(scanning) animationId=requestAnimationFrame(tick);
 }
 
 // Iniciar escáner
@@ -109,19 +131,19 @@ function iniciarEscaner(){
   scanning=true;
 
   readerEl.innerHTML='';
-  video = document.createElement('video');
+  video=document.createElement('video');
   video.setAttribute('playsinline',true);
   video.style.width='100%';
   readerEl.appendChild(video);
 
-  canvas = document.createElement('canvas');
-  ctx = canvas.getContext('2d');
+  canvas=document.createElement('canvas');
+  ctx=canvas.getContext('2d');
 
   navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}})
     .then(stream=>{
-      video.srcObject = stream;
+      video.srcObject=stream;
       video.play();
-      animationId = requestAnimationFrame(tick);
+      animationId=requestAnimationFrame(tick);
     })
     .catch(err=>{
       console.error('No se pudo acceder a la cámara',err);
@@ -134,7 +156,6 @@ btnReintentar.addEventListener('click',()=>{scanning=false; iniciarEscaner();});
 
 // Inicializar
 window.onload = ()=>{
-  // Inicializar contador
   db.collection('usuarios').where('presente','==',true).get().then(snap=>{
     presenteCount = snap.size;
     actualizarContador();
