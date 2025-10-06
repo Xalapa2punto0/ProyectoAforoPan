@@ -4,19 +4,22 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Escáner QR - Asistencia</title>
-  <link rel="stylesheet" href="style-qr.css">
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Librería QR (se carga antes del módulo) -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
 </head>
 <body>
   <h1>Escáner QR - Asistencia</h1>
 
   <div id="reader" style="width:90%;max-width:420px;margin:0 auto;border:3px solid #003366;border-radius:8px;overflow:hidden;background:#000"></div>
-  <p id="mensaje" style="text-align:center;margin-top:12px">Apunta la cámara al QR.</p>
-  <div style="text-align:center;margin-top:10px">
-    <button id="btnReintentar" style="background:#0055a5;color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:pointer">🔄 Reintentar</button>
+  <p id="mensaje">Apunta la cámara al QR.</p>
+  <div style="margin-top:10px">
+    <button id="btnReintentar">🔄 Reintentar</button>
   </div>
-  <div id="alerta" class="oculto"></div>
+  <div id="alerta"></div>
 
-  <!-- cargamos el módulo que arranca todo -->
+  <!-- Tu código JS (módulo) -->
   <script type="module" src="escaner.js"></script>
 </body>
 </html>

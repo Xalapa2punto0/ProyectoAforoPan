@@ -1,27 +1,47 @@
 body {
-  font-family: Arial, sans-serif;
-  background: #e6f0ff;
-  color: #0033a0;
+  font-family: 'Segoe UI', sans-serif;
+  background-color: #e9f1f9;
+  color: #003366;
+  margin: 0;
+  padding: 20px;
   text-align: center;
-  padding: 20px;
 }
 
-.scanner-container {
-  max-width: 400px;
-  margin: auto;
-  background: white;
-  border: 2px solid #0055cc;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
+h1 {
+  color: #0055a5;
+  font-size: 1.4em;
+  margin-bottom: 20px;
 }
 
-.qr-reader {
-  width: 100%;
+#mensaje {
   margin-top: 10px;
+  font-size: 1em;
 }
 
-.resultado {
-  margin-top: 15px;
+button {
+  background: #0055a5;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1em;
+}
+
+button:hover {
+  background: #0077d3;
+}
+
+#alerta {
+  margin-top: 12px;
   font-weight: bold;
+  display: none;
+}
+
+#alerta.exito {
+  color: #0a7a1f;
+}
+
+#alerta.error {
+  color: #c00;
 }
