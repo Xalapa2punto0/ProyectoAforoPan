@@ -1,76 +1,72 @@
-// Configura Firebase
+// Firebase
 const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_DOMINIO.firebaseapp.com",
-  projectId: "TU_PROJECT_ID"
+  apiKey: "AIzaSyD-A3y3lM1HuF39qkmFwmd-ghTj3iIV7_A",
+  authDomain: "proyecto-xi-asamblea-estatal.firebaseapp.com",
+  projectId: "proyecto-xi-asamblea-estatal",
+  storageBucket: "proyecto-xi-asamblea-estatal.firebasestorage.app",
+  messagingSenderId: "357293578039",
+  appId: "1:357293578039:web:19cfe783ed9fb938ee6cb2"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 const readerEl = document.getElementById('reader');
-const mensaje = document.getElementById('mensaje');
 const btnReintentar = document.getElementById('btnReintentar');
-const alerta = document.getElementById('alerta');
+const confirmacion = document.getElementById('confirmacion');
 
 let html5QrCode;
 let running = false;
 
-function mostrarAlerta(texto, tipo='exito'){
-  alerta.textContent = texto;
-  alerta.className = tipo==='error'?'error':'exito';
-  alerta.style.display='block';
-  setTimeout(()=>alerta.style.display='none',2500);
+function mostrarConfirmacion(texto, tipo='exito'){
+  confirmacion.textContent = texto;
+  confirmacion.className = tipo;
+  confirmacion.style.display='flex';
+  setTimeout(()=>{
+    confirmacion.style.display='none';
+    iniciarEscaner(); // Reinicia automáticamente
+  }, 2000);
 }
 
 function procesarCodigo(texto){
   const docId = (texto||'').trim();
   if(!docId) return;
 
-  mensaje.textContent = `Leyendo: ${docId}...`;
   const ref = db.collection('usuarios').doc(docId);
-
   ref.get().then(snap=>{
     if(!snap.exists){
-      mensaje.textContent='Usuario no encontrado.';
-      mostrarAlerta('Usuario no encontrado','error');
+      mostrarConfirmacion('Usuario no encontrado ❌','error');
+      if(running) html5QrCode.stop();
+      running=false;
       return;
     }
     ref.update({presente:true}).then(()=>{
       const data = snap.data();
-      mensaje.textContent = `✅ Asistencia: ${data.nombre} (${data.municipio})`;
-      mostrarAlerta('Asistencia registrada','exito');
+      mostrarConfirmacion(`✅ ${data.nombre} (${data.municipio})`,'exito');
       if(running) html5QrCode.stop();
       running=false;
     });
   }).catch(err=>{
     console.error(err);
-    mostrarAlerta('Error al registrar asistencia','error');
+    mostrarConfirmacion('Error al registrar ❌','error');
+    if(running) html5QrCode.stop();
+    running=false;
   });
-}
-
-// Función que espera a que Html5Qrcode exista
-function waitForHtml5Qrcode(callback){
-  if(window.Html5Qrcode) callback();
-  else setTimeout(()=>waitForHtml5Qrcode(callback),100);
 }
 
 function iniciarEscaner(){
-  waitForHtml5Qrcode(async ()=>{
-    try{
-      if(html5QrCode && running) await html5QrCode.stop();
+  if(!window.Html5Qrcode) return setTimeout(iniciarEscaner,100);
+  if(html5QrCode && running) html5QrCode.stop();
+  html5QrCode = new Html5Qrcode("reader");
 
-      html5QrCode = new Html5Qrcode("reader");
-      const config = {fps:10, qrbox:{width:250,height:250}};
-      await html5QrCode.start({facingMode:"environment"},config,procesarCodigo);
-
-      running=true;
-      mensaje.textContent='Cámara lista. Apunta al QR.';
-    }catch(err){
-      console.error('No se pudo iniciar el escáner:',err);
-      mostrarAlerta('Error de cámara','error');
-    }
+  html5QrCode.start(
+    {facingMode:"environment"},
+    {fps:10, qrbox:{width:250,height:250}},
+    procesarCodigo
+  ).then(()=>{running=true;})
+  .catch(err=>{
+    console.error('No se pudo iniciar el escáner:',err);
   });
 }
 
-btnReintentar.addEventListener('click',iniciarEscaner);
-iniciarEscaner();
+btnReintentar.addEventListener('click', iniciarEscaner);
+window.onload = iniciarEscaner;

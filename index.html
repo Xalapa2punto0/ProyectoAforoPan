@@ -15,12 +15,16 @@
 <body>
 <h1>Escáner QR - Asistencia</h1>
 
-<div id="reader" style="width:90%;max-width:420px;margin:0 auto;border:3px solid #003366;border-radius:8px;overflow:hidden;background:#000"></div>
-<p id="mensaje">Apunta la cámara al QR.</p>
+<div id="reader"
+     style="width:90%;max-width:420px;height:300px;margin:0 auto;
+            border:3px solid #003366;border-radius:8px;overflow:hidden;background:#000">
+</div>
+
+<div id="confirmacion"></div>
+
 <div style="margin-top:10px">
   <button id="btnReintentar">🔄 Reintentar</button>
 </div>
-<div id="alerta"></div>
 
 <script src="escaner.js"></script>
 </body>
