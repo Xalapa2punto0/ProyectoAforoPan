@@ -1,29 +1,28 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Escáner QR - Asistencia</title>
-<link rel="stylesheet" href="style-qr.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Escáner de Asistencia</title>
+  <link rel="stylesheet" href="style-qr.css" />
+
+  <!-- Firebase versión compatible sin módulos -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+  <!-- Librería jsQR -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
 <body>
-<h1>Escáner QR - Asistencia</h1>
+  <div class="contenedor">
+    <h1>Escáner de Asistencia</h1>
+    <div id="reader"></div>
+    <div id="ultimoUsuario" class="usuario-info">Esperando escaneo...</div>
+  </div>
 
-<div id="reader" style="width:90%;max-width:420px;height:400px;margin:0 auto;
-     border:3px solid #003366;border-radius:8px;overflow:hidden;background:#000"></div>
+  <div id="confirmacion" class="confirmacion"></div>
 
-<div id="confirmacion"></div>
-<div id="contador" style="margin-top:15px;font-size:1.2em;color:#003366;">Usuarios presentes: 0</div>
-
-<div style="margin-top:10px">
-  <button id="btnReintentar">🔄 Reintentar</button>
-</div>
-
-<!-- Librerías externas -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-
-<script src="escaner.js"></script>
+  <script src="escaner.js"></script>
 </body>
 </html>
+
