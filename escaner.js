@@ -1,8 +1,11 @@
 // --- Firebase configuración ---
 const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_DOMINIO.firebaseapp.com",
-  projectId: "TU_PROJECT_ID"
+  apiKey: "AIzaSyD-A3y3lM1HuF39qkmFwmd-ghTj3iIV7_A",
+  authDomain: "proyecto-xi-asamblea-estatal.firebaseapp.com",
+  projectId: "proyecto-xi-asamblea-estatal",
+  storageBucket: "proyecto-xi-asamblea-estatal.firebasestorage.app",
+  messagingSenderId: "357293578039",
+  appId: "1:357293578039:web:19cfe783ed9fb938ee6cb2"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
